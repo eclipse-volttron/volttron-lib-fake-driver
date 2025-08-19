@@ -44,14 +44,15 @@ type_mapping = {
     "boolean": bool
 }
 
-class FakeRemoteConfig(RemoteConfig):
-    remote_id: str | None = None
-
 
 class FakePointConfig(PointConfig):
     # TODO: string starting_value.
     starting_value: int | float | bool | str = Field(default='sin', alias='Starting Value')
     type: str = Field(default='string', alias='Type')
+
+
+class FakeRemoteConfig(RemoteConfig):
+    remote_id: str | None = None
 
 
 class FakeRegister(BaseRegister):
@@ -124,23 +125,16 @@ class Fake(BasicRevert, BaseInterface):
         return register.value
 
     def create_register(self, register_definition: FakePointConfig) -> FakeRegister:
-        read_only = register_definition.writable is not True
-        description = register_definition.notes
-        units = register_definition.units
-        default_value = register_definition.starting_value.strip()
-        if not default_value:
-            default_value = None
-        reg_type = type_mapping.get(register_definition.type, str)
-
+        default_value = register_definition.starting_value.strip() if register_definition.starting_value else None
         register_type = FakeRegister if not register_definition.volttron_point_name.startswith(
             'EKG') else EKGregister
 
-        register = register_type(read_only,
+        register = register_type(register_definition.writable is not True,
                                  register_definition.volttron_point_name,
-                                 units,
-                                 reg_type,
+                                 register_definition.units,
+                                 type_mapping.get(register_definition.type, str),
                                  default_value=default_value,
-                                 description=description)
+                                 description=(register_definition.notes))
 
         if default_value is not None:
             self.set_default(register_definition.volttron_point_name, register.value)

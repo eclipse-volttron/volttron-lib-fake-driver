@@ -29,7 +29,7 @@ import random
 
 from collections.abc import KeysView
 from math import pi
-from pydantic import Field
+from pydantic import ConfigDict, Field
 from typing import cast
 
 from volttron.driver.base.interfaces import (BaseInterface, BaseRegister, BasicRevert)
@@ -47,8 +47,8 @@ type_mapping = {
 
 
 class FakePointConfig(PointConfig):
-    # TODO: string starting_value.
-    starting_value: int | float | bool | str = Field(default='sin', alias='Starting Value')
+    model_config = ConfigDict(str_strip_whitespace=True)
+    starting_value: int | float | bool | str | None = Field(default='sin', alias='Starting Value')
     type: str = Field(default='string', alias='Type')
 
 
@@ -126,7 +126,6 @@ class Fake(BasicRevert, BaseInterface):
         return register.value
 
     def create_register(self, register_definition: FakePointConfig) -> FakeRegister:
-        default_value = register_definition.starting_value.strip() if register_definition.starting_value else None
         register_type = FakeRegister if not register_definition.volttron_point_name.startswith(
             'EKG') else EKGregister
 
@@ -134,10 +133,10 @@ class Fake(BasicRevert, BaseInterface):
                                  register_definition.volttron_point_name,
                                  register_definition.units,
                                  type_mapping.get(register_definition.type, str),
-                                 default_value=default_value,
-                                 description=(register_definition.notes))
+                                 default_value=register_definition.starting_value,
+                                 description=register_definition.notes)
 
-        if default_value is not None:
+        if register_definition.starting_value is not None:
             self.set_default(register_definition.volttron_point_name, register.value)
         return register
 

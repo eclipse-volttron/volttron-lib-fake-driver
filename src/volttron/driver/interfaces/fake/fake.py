@@ -30,6 +30,7 @@ import random
 from collections.abc import KeysView
 from math import pi
 from pydantic import Field
+from typing import cast
 
 from volttron.driver.base.interfaces import (BaseInterface, BaseRegister, BasicRevert)
 from volttron.driver.base.config import PointConfig, RemoteConfig
@@ -110,14 +111,14 @@ class Fake(BasicRevert, BaseInterface):
         BaseInterface.__init__(self, config, *args, **kwargs)
 
     def get_point(self, point_name, **kwargs):
-        register: FakeRegister = self.get_register_by_name(point_name)
+        register: FakeRegister = cast(FakeRegister, self.get_register_by_name(point_name))
         return register.value
 
-    def _get_multiple_points(self, topics: KeysView[str], **kwargs) -> (dict, dict):
+    def _get_multiple_points(self, topics: KeysView[str], **kwargs) -> tuple[dict, dict]:
         return BaseInterface.get_multiple_points(self, topics, **kwargs)
 
     def _set_point(self, point_name, value):
-        register: FakeRegister = self.get_register_by_name(point_name)
+        register: FakeRegister = cast(FakeRegister, self.get_register_by_name(point_name))
         if register.read_only:
             raise RuntimeError("Trying to write to a point configured read only: " + point_name)
 

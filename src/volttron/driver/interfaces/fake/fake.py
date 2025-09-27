@@ -59,8 +59,7 @@ class FakeRemoteConfig(RemoteConfig):
 class FakeRegister(BaseRegister):
 
     def __init__(self, read_only, point_name, units, reg_type, default_value=None, description=''):
-        #     register_type, read_only, pointName, units, description = ''):
-        super(FakeRegister, self).__init__("byte", read_only, point_name, units, description='')
+        super(FakeRegister, self).__init__("byte", read_only, point_name, units, description=description)
         self.reg_type = reg_type
 
         if default_value is None:
@@ -72,10 +71,10 @@ class FakeRegister(BaseRegister):
                 self.value = self.reg_type()
 
 
-class EKGregister(BaseRegister):
+class EKGRegister(BaseRegister):
 
-    def __init__(self, read_only, point_name, units, reg_type, default_value=None, description=''):
-        super(EKGregister, self).__init__("byte", read_only, point_name, units, description='')
+    def __init__(self, read_only, point_name, units, _, default_value=None, description=''):
+        super(EKGRegister, self).__init__("byte", read_only, point_name, units, description=description)
         self._value = 1
 
         math_functions = ('acos', 'acosh', 'asin', 'asinh', 'atan', 'atan2', 'atanh', 'sin',
@@ -83,7 +82,7 @@ class EKGregister(BaseRegister):
         if default_value in math_functions:
             self.math_func = getattr(math, default_value)
         else:
-            _log.error('Invalid default_value in EKGregister.')
+            _log.error('Invalid default_value in EKGRegister.')
             _log.warning('Defaulting to sin(x)')
             self.math_func = math.sin
 
@@ -92,9 +91,9 @@ class EKGregister(BaseRegister):
         now = datetime.datetime.now()
         seconds_in_radians = pi * float(now.second) / 30.0
 
-        yval = self.math_func(seconds_in_radians)
+        y_val = self.math_func(seconds_in_radians)
 
-        return self._value * yval
+        return self._value * y_val
 
     @value.setter
     def value(self, x):
@@ -126,9 +125,7 @@ class Fake(BasicRevert, BaseInterface):
         return register.value
 
     def create_register(self, register_definition: FakePointConfig) -> FakeRegister:
-        register_type = FakeRegister if not register_definition.volttron_point_name.startswith(
-            'EKG') else EKGregister
-
+        register_type = FakeRegister if not register_definition.volttron_point_name.startswith('EKG') else EKGRegister
         register = register_type(register_definition.writable is not True,
                                  register_definition.volttron_point_name,
                                  register_definition.units,

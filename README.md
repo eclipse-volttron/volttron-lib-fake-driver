@@ -1,55 +1,46 @@
 # VOLTTRON Fake Driver Interface
 
 ![Python 3.10](https://img.shields.io/badge/python-3.10-blue.svg)
-![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)
 ![Passing?](https://github.com/eclipse-volttron/volttron-lib-fake-driver/actions/workflows/run-tests.yml/badge.svg)
 [![pypi version](https://img.shields.io/pypi/v/volttron-lib-fake-driver.svg)](https://pypi.org/project/volttron-lib-fake-driver/)
 
 The FakeDriver is a way to quickly see data published to the message bus in a format that mimics
 what a true Driver would produce. This is an extremely simple implementation of the 
-[VOLTTRON Driver Framework](https://eclipse-volttron.readthedocs.io/en/latest/external-docs/volttron-platform-driver/docs/source/index.html). 
+[VOLTTRON Driver Framework](https://eclipse-volttron.readthedocs.io/en/latest/external-docs/volttron-platform-driver/index.html). 
 This driver does not connect to any actual device and instead produces random and or pre-configured values.
 
-# Requires
+## Pre-requisite
 
-* python >= 3.10
-* volttron >= 10.0
-* volttron-lib-base-driver
+VOLTTRON (>=11.0.0rc0) should be installed and running.  Its virtual environment should be active.
+Information on how to install of the VOLTTRON platform can be found
+[here](https://github.com/eclipse-volttron/volttron-core/tree/v10)
 
+## Automatically installed dependencies
+
+* volttron-lib-base-driver >= 2.0.0rc0
 
 # Documentation
-More detailed documentation can be found on [ReadTheDocs](https://eclipse-volttron.readthedocs.io/en/latest/external-docs/volttron-platform-driver/docs/source/index.html).
-The RST source of the documentation for this component is located in the "docs" directory of this repository.
+More detailed documentation can be found on [ReadTheDocs](https://eclipse-volttron.readthedocs.io/en/latest/external-docs/volttron-lib-fake-driver_docs_root/docs/source/index.html#fake-driver). The RST source
+of the documentation for this component is located in the "docs" directory of this repository.
 
 
 # Installation
 
-Before installing, VOLTTRON should be installed and running.  Its virtual environment should be active.
-Information on how to install of the VOLTTRON platform can be found
-[here](https://github.com/eclipse-volttron/volttron-core).
-
 1. If it is not already, install the VOLTTRON Platform Driver Agent:
 
     ```shell
-    vctl install volttron-platform-driver --vip-identity platform.driver --start
+    vctl install volttron-platform-driver --vip-identity platform.driver
     ```
 
 2. Install the volttron fake driver library:
 
    ```shell
-   pip install volttron-lib-fake-driver
+   poetry add --directory $VOLTTRON_HOME volttron-lib-fake-driver
    ```
 
-3. Store device and registry files for the Fake device to the Platform Driver configuration store:
+3. Create configurations for a fake device:
 
-   * Create a config directory and navigate to it:
-
-      ```shell
-      mkdir config
-      cd config
-      ```
-
-   * Navigate to the config directory and create a file called `fake.config` and add the following JSON to it:
+   * Create a file called `fake.config` and add the following JSON to it:
 
       ```json
       {
@@ -104,7 +95,7 @@ Information on how to install of the VOLTTRON platform can be found
 
 4. Observe Data
 
-   To see data being published to the bus, install a [Listener Agent](https://pypi.org/project/volttron-listener/):
+   To see data being published to the bus, install a [Listener Agent](https://github.com/eclipse-volttron/volttron-listener):
    
    ```
    vctl install volttron-listener --start

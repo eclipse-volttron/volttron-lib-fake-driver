@@ -26,9 +26,14 @@ import datetime
 import logging
 import math
 import random
+
+from collections.abc import KeysView
 from math import pi
+from pydantic import ConfigDict, Field
+from typing import cast
 
 from volttron.driver.base.interfaces import (BaseInterface, BaseRegister, BasicRevert)
+from volttron.driver.base.config import PointConfig, RemoteConfig
 
 _log = logging.getLogger(__name__)
 type_mapping = {
@@ -41,11 +46,20 @@ type_mapping = {
 }
 
 
+class FakePointConfig(PointConfig):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    starting_value: int | float | bool | str | None = Field(default='sin', alias='Starting Value')
+    type: str = Field(default='string', alias='Type')
+
+
+class FakeRemoteConfig(RemoteConfig):
+    remote_id: str | None = None
+
+
 class FakeRegister(BaseRegister):
 
-    def __init__(self, read_only, pointName, units, reg_type, default_value=None, description=''):
-        #     register_type, read_only, pointName, units, description = ''):
-        super(FakeRegister, self).__init__("byte", read_only, pointName, units, description='')
+    def __init__(self, read_only, point_name, units, reg_type, default_value=None, description=''):
+        super(FakeRegister, self).__init__("byte", read_only, point_name, units, description=description)
         self.reg_type = reg_type
 
         if default_value is None:
@@ -57,10 +71,10 @@ class FakeRegister(BaseRegister):
                 self.value = self.reg_type()
 
 
-class EKGregister(BaseRegister):
+class EKGRegister(BaseRegister):
 
-    def __init__(self, read_only, pointName, units, reg_type, default_value=None, description=''):
-        super(EKGregister, self).__init__("byte", read_only, pointName, units, description='')
+    def __init__(self, read_only, point_name, units, _, default_value=None, description=''):
+        super(EKGRegister, self).__init__("byte", read_only, point_name, units, description=description)
         self._value = 1
 
         math_functions = ('acos', 'acosh', 'asin', 'asinh', 'atan', 'atan2', 'atanh', 'sin',
@@ -68,7 +82,7 @@ class EKGregister(BaseRegister):
         if default_value in math_functions:
             self.math_func = getattr(math, default_value)
         else:
-            _log.error('Invalid default_value in EKGregister.')
+            _log.error('Invalid default_value in EKGRegister.')
             _log.warning('Defaulting to sin(x)')
             self.math_func = math.sin
 
@@ -77,9 +91,9 @@ class EKGregister(BaseRegister):
         now = datetime.datetime.now()
         seconds_in_radians = pi * float(now.second) / 30.0
 
-        yval = self.math_func(seconds_in_radians)
+        y_val = self.math_func(seconds_in_radians)
 
-        return self._value * yval
+        return self._value * y_val
 
     @value.setter
     def value(self, x):
@@ -88,63 +102,47 @@ class EKGregister(BaseRegister):
 
 class Fake(BasicRevert, BaseInterface):
 
-    def __init__(self, **kwargs):
-        super(Fake, self).__init__(**kwargs)
+    REGISTER_CONFIG_CLASS = FakePointConfig
+    INTERFACE_CONFIG_CLASS = FakeRemoteConfig
 
-    def configure(self, config_dict, registry_config_str):
-        self.parse_config(registry_config_str)
+    def __init__(self, config: FakeRemoteConfig, *args, **kwargs):
+        BasicRevert.__init__(self, **kwargs)
+        BaseInterface.__init__(self, config, *args, **kwargs)
 
-    def get_point(self, point_name):
-        register = self.get_register_by_name(point_name)
-
+    def get_point(self, point_name, **kwargs):
+        register: FakeRegister = cast(FakeRegister, self.get_register_by_name(point_name))
         return register.value
 
+    def _get_multiple_points(self, topics: KeysView[str], **kwargs) -> tuple[dict, dict]:
+        return BaseInterface.get_multiple_points(self, topics, **kwargs)
+
     def _set_point(self, point_name, value):
-        register = self.get_register_by_name(point_name)
+        register: FakeRegister = cast(FakeRegister, self.get_register_by_name(point_name))
         if register.read_only:
             raise RuntimeError("Trying to write to a point configured read only: " + point_name)
 
         register.value = register.reg_type(value)
         return register.value
 
-    def _scrape_all(self):
-        result = {}
-        read_registers = self.get_registers_by_type("byte", True)
-        write_registers = self.get_registers_by_type("byte", False)
-        for register in read_registers + write_registers:
-            result[register.point_name] = register.value
+    def create_register(self, register_definition: FakePointConfig) -> FakeRegister:
+        register_type = FakeRegister if not register_definition.volttron_point_name.startswith('EKG') else EKGRegister
+        register = register_type(register_definition.writable is not True,
+                                 register_definition.volttron_point_name,
+                                 register_definition.units,
+                                 type_mapping.get(register_definition.type, str),
+                                 default_value=register_definition.starting_value,
+                                 description=register_definition.notes)
 
-        return result
+        if register_definition.starting_value is not None:
+            self.set_default(register_definition.volttron_point_name, register.value)
+        return register
 
-    def parse_config(self, configDict):
-        if configDict is None:
-            return
-
-        for regDef in configDict:
-            # Skip lines that have no address yet.
-            if not regDef['Point Name']:
-                continue
-
-            read_only = regDef['Writable'].lower() != 'true'
-            point_name = regDef['Volttron Point Name']
-            description = regDef.get('Notes', '')
-            units = regDef['Units']
-            default_value = regDef.get("Starting Value", 'sin').strip()
-            if not default_value:
-                default_value = None
-            type_name = regDef.get("Type", 'string')
-            reg_type = type_mapping.get(type_name, str)
-
-            register_type = FakeRegister if not point_name.startswith('EKG') else EKGregister
-
-            register = register_type(read_only,
-                                     point_name,
-                                     units,
-                                     reg_type,
-                                     default_value=default_value,
-                                     description=description)
-
-            if default_value is not None:
-                self.set_default(point_name, register.value)
-
-            self.insert_register(register)
+    @classmethod
+    def unique_remote_id(cls, config_name: str, config: RemoteConfig) -> tuple:
+        """Unique Remote ID
+        Subclasses should use this class method to return a hashable identifier which uniquely identifies a single
+         remote -- e.g., if multiple remotes may exist at a single IP address, but on different ports,
+         the unique ID might be the tuple: (ip_address, port).
+        The base class returns the name of the device configuration file, requiring a separate DriverAgent for each.
+        """
+        return (config_name,) if config.remote_id is None else (config.remote_id,)

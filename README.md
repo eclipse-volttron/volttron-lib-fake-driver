@@ -35,8 +35,10 @@ of the documentation for this component is located in the "docs" directory of th
 2. Install the volttron fake driver library:
 
    ```shell
-   poetry add --directory $VOLTTRON_HOME volttron-lib-fake-driver
+   vctl install-lib volttron-lib-fake-driver
    ```
+
+   To remove it later, use ```vctl remove-lib volttron-lib-fake-driver```.
 
 3. Create configurations for a fake device:
 
@@ -44,15 +46,18 @@ of the documentation for this component is located in the "docs" directory of th
 
       ```json
       {
-          "driver_config": {},
+           "driver_config": {
+              "remote_id": "fake-campus-building-1"
+           },
           "registry_config": "config://fake.csv",
           "interval": 5,
           "timezone": "US/Pacific",
           "heart_beat_point": "Heartbeat",
           "driver_type": "fake",
+           "publish_depth_first_multi": true,
+           "publish_depth_first_all": true,
           "publish_breadth_first_all": false,
-          "publish_depth_first": false,
-          "publish_breadth_first": false
+           "publish_breadth_first_multi": false
           }
       ```
 

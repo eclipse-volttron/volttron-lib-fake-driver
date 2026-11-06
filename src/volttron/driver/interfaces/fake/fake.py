@@ -53,7 +53,8 @@ class FakePointConfig(PointConfig):
 
 
 class FakeRemoteConfig(RemoteConfig):
-    remote_id: str | None = None
+    remote_id: str | None = Field(default=None, description='Identifies this fake device; part of its UAI.',
+                                  json_schema_extra={'group': 'Device', 'order': 10})
 
 
 class FakeRegister(BaseRegister):
